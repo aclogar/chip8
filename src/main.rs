@@ -2,23 +2,13 @@ use std::env;
 use std::fs;
 
 fn main() {
-//    let mut reg: [u8; 16] = [0; 16];
-//    let mut reg_i: u16 = 0;
-//    let mut PC: u16 = 0;
-//    let mut delay: u8;
-//    let mut sound: u8;
-//
-    let mut stack: Vec<u16> = Vec::new();
 
-    let args: Vec<String> = env::args().collect();
-
-//    let query = &args[1];
     let filename = "astrododge.ch8";
 
     let contents = fs::read(filename)
         .expect("Something went wrong reading the file");
 
-    let mut reg = Registry::create();
+    let mut reg = RegisterBank::create();
 
     loop {
         let instruction = get_opcode(&contents, reg.pc as usize);
@@ -28,18 +18,6 @@ fn main() {
 
         //update timers
     }
-
-
-    stack.push(0xFF);
-    stack.push(0x32);
-    stack.push(0x1a);
-
-
-    // reg[2] = 12;
-    println!("{:?}", reg);
-    println!("{}", stack.pop().unwrap());
-    println!("{}", stack.pop().unwrap());
-    println!("{}", stack.pop().unwrap());
 }
 
 fn get_opcode(memory: &Vec<u8>, index:usize) -> u16{
@@ -51,7 +29,7 @@ fn get_opcode(memory: &Vec<u8>, index:usize) -> u16{
 
 
 #[derive(Debug)]
-struct Registry {
+struct RegisterBank {
     reg: [u8; 16],
     reg_i: u16,
     pc: u16,
@@ -60,15 +38,16 @@ struct Registry {
     stack: Vec<u16>,
 }
 
-impl Registry {
-    fn create() -> Registry {
-        Registry {
+impl RegisterBank {
+    fn create() -> RegisterBank {
+        RegisterBank {
             reg: [0; 16],
             reg_i: 0,
-            pc: 0x200,
+            pc: 0x200, //Thread for exec (Normally 60Hz could be faster)
             delay: 0,
-            sound: 0,
+            sound: 0, //Thread for sound (60 Hz, see spec)
             stack: Vec::new(),
+            //Thread for visuals (same speed as exec thread)
         }
     }
     fn execute_instruction(&mut self, inst: u16){
@@ -78,12 +57,12 @@ impl Registry {
         } else if inst == 0x00EE {
             println!("{:x?}, {:x?}", inst & 0x00EE, 0x00EE );
             println!("Return");
-        }else if inst & 0x7000 == 0x7000 {
+        }else if inst & 0xF000 == 0x7000 {
             println!("ADD");
             let index = inst << 4 >> 12;
             let value = inst  << 8 >> 8;
             self.reg[index as usize] += value as u8;
-            println!("instruction: {:x?}, registry: {:x?}, value: {:x?}", inst , index, value );
+            println!("instruction: {:x?}, RegisterBank: {:x?}, value: {:x?}", inst , index, value );
             println!("{:?}", self);
         }
 
@@ -92,3 +71,14 @@ impl Registry {
     }
 }
 
+#[derive(Debug)]
+enum Operation {
+    /* x must be a nibble */
+    ADD {x: u8, byte: u8},
+    JMP {addr: u16},
+}
+impl Operation {
+    fn parse(instruction:(u8,u8)) -> Operation {
+        Operation::ADD{x: 1, byte: 0x07}
+    }
+}

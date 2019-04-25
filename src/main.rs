@@ -1,8 +1,7 @@
-use std::env;
+//use std::env;
 use std::fs;
 
 fn main() {
-
     let filename = "astrododge.ch8";
 
     let contents = fs::read(filename)
@@ -10,8 +9,13 @@ fn main() {
 
     let mut reg = RegisterBank::create();
 
+
+    println!("{:?}", Operation::parse((&0x7a, &0x12)));
+
     loop {
         let instruction = get_opcode(&contents, reg.pc as usize);
+
+        Operation::parse((contents.get(reg.pc as usize).unwrap(), contents.get(reg.pc as usize).unwrap()));
         reg.execute_instruction(instruction);
 
         //update screen
@@ -20,7 +24,7 @@ fn main() {
     }
 }
 
-fn get_opcode(memory: &Vec<u8>, index:usize) -> u16{
+fn get_opcode(memory: &Vec<u8>, index: usize) -> u16 {
 //    let mut opcode = [memory.get(index).unwrap(),memory.get(index+1).unwrap()];
     ((memory[index] as u16) << 8) | memory[index + 1] as u16
 }
@@ -50,35 +54,40 @@ impl RegisterBank {
             //Thread for visuals (same speed as exec thread)
         }
     }
-    fn execute_instruction(&mut self, inst: u16){
-        if inst  == 0x00E0 {
-            println!("{:x?}, {:x?}", inst & 0x00E0, 0x00E0 );
+    fn execute_instruction(&mut self, inst: u16) {
+        if inst == 0x00E0 {
+            println!("{:x?}, {:x?}", inst & 0x00E0, 0x00E0);
             println!("Clear screen");
         } else if inst == 0x00EE {
-            println!("{:x?}, {:x?}", inst & 0x00EE, 0x00EE );
+            println!("{:x?}, {:x?}", inst & 0x00EE, 0x00EE);
             println!("Return");
-        }else if inst & 0xF000 == 0x7000 {
+        } else if inst & 0xF000 == 0x7000 {
             println!("ADD");
             let index = inst << 4 >> 12;
-            let value = inst  << 8 >> 8;
+            let value = inst << 8 >> 8;
             self.reg[index as usize] += value as u8;
-            println!("instruction: {:x?}, RegisterBank: {:x?}, value: {:x?}", inst , index, value );
+            println!("instruction: {:x?}, RegisterBank: {:x?}, value: {:x?}", inst, index, value);
             println!("{:?}", self);
         }
 
         self.pc += 2; // increments program counter
-        println!("Instruction: {:x?} next index:{:x?}", inst,self.pc);
+        println!("Instruction: {:x?} next index:{:x?}", inst, self.pc);
     }
 }
 
 #[derive(Debug)]
 enum Operation {
     /* x must be a nibble */
-    ADD {x: u8, byte: u8},
-    JMP {addr: u16},
+    ADD { x: u8, byte: u8 },
+    JMP { addr: u16 },
 }
+
 impl Operation {
-    fn parse(instruction:(u8,u8)) -> Operation {
-        Operation::ADD{x: 1, byte: 0x07}
+    fn parse(instruction: (&u8, &u8)) -> Operation {
+        match instruction {
+            (0x70...0x7f, _) =>  Operation::ADD { x: instruction.0 & 0x0F, byte: instruction.1.clone() },
+            (0x00, 0xee) => Operation::JMP { addr: 0x300 },
+            _ => Operation::JMP { addr: 0x200 }
+        }
     }
 }

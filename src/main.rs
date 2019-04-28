@@ -1,5 +1,6 @@
 //use std::env;
 use std::fs;
+use std::os::raw::c_void;
 
 fn main() {
     let filename = "astrododge.ch8";
@@ -15,8 +16,11 @@ fn main() {
     loop {
         let instruction = get_opcode(&contents, reg.pc as usize);
 
-        Operation::parse((contents.get(reg.pc as usize).unwrap(), contents.get(reg.pc as usize).unwrap()));
-        reg.execute_instruction(instruction);
+        let op = Operation::parse((contents.get(reg.pc as usize).unwrap(), contents.get(reg.pc as usize).unwrap()));
+        Operation::execute(&mut reg, op);
+        reg.pc += 2;
+
+        //reg.execute_instruction(instruction);
 
         //update screen
 
@@ -140,6 +144,13 @@ impl Operation {
             (0x70...0x7F, _) => Operation::ADD_CONST { x: instruction.0 & 0x0F, byte: instruction.1.clone() },
             (0x80...0x8F, _) if instruction.1 & 0x0F == 0x00 => Operation::MOV_REG { x: instruction.0 & 0x0F, y: instruction.1 >> 4 },
             _ => Operation::JMP { addr: 0x200 }
+        }
+    }
+    fn execute(reg_bank: &mut RegisterBank, opertation: Operation){
+        match opertation {
+            Operation::MOV_CONST { x:x, byte: b} => reg_bank.reg[x] = b,
+            Operation::ADD_CONST { x:x, byte: b} => reg_bank.reg[x] += b,
+            _ => ()
         }
     }
 }

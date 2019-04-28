@@ -78,15 +78,67 @@ impl RegisterBank {
 #[derive(Debug)]
 enum Operation {
     /* x must be a nibble */
-    ADD { x: u8, byte: u8 },
+    SCDOWN { x: u8 },
+    CLS,
+    RTS,
+    SCRIGHT,
+    SCLEFT,
+    LOW,
+    HIGH,
     JMP { addr: u16 },
+    JSR { addr: u16 },
+    SKEQ_CONST { x: u8, byte: u8 },
+    SKNE_CONST { x: u8, byte: u8 },
+    SKEQ_REG { x: u8, y: u8 },
+    MOV_CONST { x: u8, byte: u8 },
+    ADD_CONST { x: u8, byte: u8 },
+    MOV_REG { x: u8, y: u8 },
+    OR { x: u8, y: u8 },
+    AND_NO_CARRY { x: u8, y: u8 },
+    XOR { x: u8, y: u8 },
+    AND_CARRY { x: u8, y: u8 },
+    SUB1_BORROW { x: u8, y: u8 },    // set vf to 1 if borrows Vx = Vx - Vy
+    SHIFT_RIGHT { x: u8 },    //bit 0 -> Vf
+    SUB2_BORROW { x: u8, y: u8 },    // set vf to 1 if borrows Vx = Vy - Vx
+    SHIFT_LEFT { x: u8 },    // bit 7 -> Vf
+    SKNE_REG { x: u8, y: u8 },
+    MOV_I { value: u16 },
+    JMP_I { addr: u16 },
+    RAND { x: u8, max: u16 },
+    SPRITE { x: u8, y: u8, s: u8 },
+    XSPRITE { x: u8, y: u8 },
+    SK_KEY_PRESS { key: u8 },
+    SK_KEY_NOT_PRESS { key: u8 },
+    GET_DELAY { x: u8 },
+    KEY_WAIT { key: u8 },
+    SET_DELAY { x: u8 },
+    SET_SOUND { x: u8 },
+    ADD_I { x: u8 },
+    FONT { x: u8 },
+    XFONT { x: u8 }, //Super only
+    BCD { x: u8 },
+    STORE_REG { x: u8 },
+    LOAD_REG { x: u8 }
 }
 
 impl Operation {
     fn parse(instruction: (&u8, &u8)) -> Operation {
         match instruction {
-            (0x70...0x7f, _) =>  Operation::ADD { x: instruction.0 & 0x0F, byte: instruction.1.clone() },
-            (0x00, 0xee) => Operation::JMP { addr: 0x300 },
+            (0x00, 0xC0...0xCF) => Operation::SCDOWN { x: instruction.1 & 0x0F },
+            (0x00, 0xE0) => Operation::CLS,
+            (0x00, 0xEE) => Operation::RTS,
+            (0x00, 0xFB) => Operation::SCRIGHT,
+            (0x00, 0xFC) => Operation::SCLEFT,
+            (0x00, 0xFE) => Operation::LOW,
+            (0x00, 0xFF) => Operation::HIGH,
+            (0x10...0x1F, _) => Operation::JMP { addr: ((instruction.0.clone() as u16) << 8) | instruction.1.clone() as u16 & 0x0FFF },
+            (0x20...0x2F, _) => Operation::JSR { addr: ((instruction.0.clone() as u16) << 8) | instruction.1.clone() as u16 & 0x0FFF },
+            (0x30...0x3F, _) => Operation::SKEQ_CONST { x: instruction.0 & 0x0F, byte: instruction.1.clone() },
+            (0x40...0x4F, _) => Operation::SKNE_CONST { x: instruction.0 & 0x0F, byte: instruction.1.clone() },
+            (0x50...0x5F, _) => Operation::SKEQ_REG { x: instruction.0 & 0x0F, y: instruction.1 >> 4 },
+            (0x60...0x6F, _) => Operation::MOV_CONST { x: instruction.0 & 0x0F, byte: instruction.1.clone() },
+            (0x70...0x7F, _) => Operation::ADD_CONST { x: instruction.0 & 0x0F, byte: instruction.1.clone() },
+            (0x80...0x8F, _) if instruction.1 & 0x0F == 0x00 => Operation::MOV_REG { x: instruction.0 & 0x0F, y: instruction.1 >> 4 },
             _ => Operation::JMP { addr: 0x200 }
         }
     }

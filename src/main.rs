@@ -15,8 +15,12 @@ fn main() {
 
     loop {
 
+        println!("Current Program Counter {:x?}", res.pc);
+//        let instruction = get_opcode(&contents, reg.pc as usize);
+//        println!("Current instruction {:x?}", instruction);
         let op = Operation::parse((contents.get(res.pc as usize).unwrap(), contents.get(res.pc as usize).unwrap()));
         Operation::execute(&mut res, op);
+        println!("RegisterBank: {:?}", res);
         res.pc += 2;
 
         //reg.execute_instruction(instruction);
@@ -36,7 +40,7 @@ struct Resources {
     delay: u8,
     sound: u8,
     stack: Vec<u16>,
-    ram: Box<[u8]>,
+    ram: Box<[u8; MEMORY_SIZE]>,
 }
 
 impl Resources {
@@ -98,7 +102,8 @@ enum Operation {
     _XFont { x: u8 }, //Super only
     _Bcd { x: u8 },
     _StoreReg { x: u8 },
-    _LoadReg { x: u8 }
+    _LoadReg { x: u8 },
+    NONE
 }
 
 impl Operation {
@@ -111,21 +116,32 @@ impl Operation {
             (0x00, 0xFC) => Operation::Scleft,
             (0x00, 0xFE) => Operation::Low,
             (0x00, 0xFF) => Operation::High,
-            (0x10...0x1F, _) => Operation::Jmp { addr: ((instruction.0.clone() as u16) << 8) | instruction.1.clone() as u16 & 0x0FFF },
-            (0x20...0x2F, _) => Operation::Jsr { addr: ((instruction.0.clone() as u16) << 8) | instruction.1.clone() as u16 & 0x0FFF },
+            (0x10...0x1F, _) => Operation::Jmp { addr: (((instruction.0.clone() as u16) << 8) | instruction.1.clone() as u16) & 0x0FFF },
+            (0x20...0x2F, _) => Operation::Jsr { addr: (((instruction.0.clone() as u16) << 8) | instruction.1.clone() as u16) & 0x0FFF },
             (0x30...0x3F, _) => Operation::SkeqConst { x: instruction.0 & 0x0F, byte: instruction.1.clone() },
             (0x40...0x4F, _) => Operation::SkneConst { x: instruction.0 & 0x0F, byte: instruction.1.clone() },
             (0x50...0x5F, _) => Operation::SkeqReg { x: instruction.0 & 0x0F, y: instruction.1 >> 4 },
             (0x60...0x6F, _) => Operation::MovConst { x: instruction.0 & 0x0F, byte: instruction.1.clone() },
             (0x70...0x7F, _) => Operation::AddConst { x: instruction.0 & 0x0F, byte: instruction.1.clone() },
             (0x80...0x8F, _) if instruction.1 & 0x0F == 0x00 => Operation::MovReg { x: instruction.0 & 0x0F, y: instruction.1 >> 4 },
-            _ => Operation::Jmp { addr: 0x200 }
+            _ => Operation::NONE
         }
     }
     fn execute(resources: &mut Resources, opertation: Operation){
         match opertation {
-            Operation::MovConst { x, byte: b} => resources.reg[x as usize] = b,
-            Operation::AddConst { x, byte: b} => resources.reg[x as usize] += b,
+            Operation::Rts => {
+                println!("Returning");
+                resources.pc = resources.stack.pop().unwrap()
+            },
+            Operation::Jsr {addr} => {
+                resources.stack.push(resources.pc);
+                resources.pc = addr;
+            }
+            Operation::SkeqConst {x,byte} => {
+//                if
+            }
+            Operation::MovConst { x:x, byte: b} => resources.reg[x as usize] = b,
+            Operation::AddConst { x:x, byte: b} => resources.reg[x as usize] += b,
             _ => ()
         }
     }

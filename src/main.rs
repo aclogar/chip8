@@ -8,7 +8,7 @@ fn main() {
     let contents = fs::read(filename)
         .expect("Something went wrong reading the file");
 
-    let mut reg = RegisterBank::create();
+    let mut reg = Resources::create();
 
 
     println!("{:?}", Operation::parse((&0x7a, &0x12)));
@@ -36,25 +36,25 @@ fn get_opcode(memory: &Vec<u8>, index: usize) -> u16 {
 //Executes
 
 
-#[derive(Debug)]
-struct RegisterBank {
+//#[derive(Debug)]
+struct Resources {
     reg: [u8; 16],
     reg_i: u16,
     pc: u16,
     delay: u8,
     sound: u8,
-    stack: Vec<u16>,
+    stack: Vec<u16>
 }
 
-impl RegisterBank {
-    fn create() -> RegisterBank {
-        RegisterBank {
+impl Resources {
+    fn create() -> Resources {
+        Resources {
             reg: [0; 16],
             reg_i: 0,
             pc: 0x200, //Thread for exec (Normally 60Hz could be faster)
             delay: 0,
             sound: 0, //Thread for sound (60 Hz, see spec)
-            stack: Vec::new(),
+            stack: Vec::new()
             //Thread for visuals (same speed as exec thread)
         }
     }
@@ -146,10 +146,10 @@ impl Operation {
             _ => Operation::JMP { addr: 0x200 }
         }
     }
-    fn execute(reg_bank: &mut RegisterBank, opertation: Operation){
+    fn execute(resources: &mut Resources, opertation: Operation){
         match opertation {
-            Operation::MOV_CONST { x:x, byte: b} => reg_bank.reg[x] = b,
-            Operation::ADD_CONST { x:x, byte: b} => reg_bank.reg[x] += b,
+            Operation::MOV_CONST { x:x, byte: b} => resources.reg[x as usize] = b,
+            Operation::ADD_CONST { x:x, byte: b} => resources.reg[x as usize] += b,
             _ => ()
         }
     }

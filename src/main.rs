@@ -55,7 +55,7 @@ impl Resources {
         }
     }
     fn load_program(&mut self, mut program: Vec<u8>, start_index: u16) -> () {
-        let mut cur_address:usize = start_index as usize;
+        let mut cur_address: usize = start_index as usize;
         program.reverse();
         if program.len() % 2 != 0 {
             panic!("The program provided has an uneven number of bytes (ie missing a nibble)");
@@ -64,8 +64,8 @@ impl Resources {
             let byte2 = program.pop().expect("Failed to load second byte");
             self.ram[cur_address] = (byte1, byte2);
             cur_address += 1;
-            if cur_address > std::u16::MAX as usize {
-                panic!("Program oad address overflowed")
+            if cur_address > std::u16::MAX as usize || cur_address > self.ram.len() {
+                panic!("Program load address overflowed")
             } 
         }
     }

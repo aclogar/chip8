@@ -1,3 +1,5 @@
+extern crate rand;
+
 use std::fs;
 
 const MEMORY_SIZE: usize = 4096;
@@ -218,6 +220,8 @@ impl Operation {
                 println!("Returning");
                 resources.pc = resources.stack.pop().unwrap()
             }
+
+            Operation::Jmp { addr } => resources.pc = addr,
             Operation::Jsr { addr } => {
                 resources.stack.push(resources.pc);
                 resources.pc = addr ;
@@ -269,7 +273,29 @@ impl Operation {
                 }
             },
             Operation::_MovI { value } => resources.reg_i = value,
+            Operation::_JmpI { addr } => resources.pc = addr + resources.reg[0] as u16,
+            Operation::_Rand { x, max } => {
+                resources.reg[x as usize] = rand::random::<u8>() & max;
+            }
             _ => (),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests{
+    use super::*;
+
+    #[test]
+    fn rand_test(){
+        let op = Operation::parse(&(0xc1,0x12));
+        println!("{:?}", op);
+        match op {
+            Operation::_Rand {x:1, max:0x12} => (),
+            _ => panic!("Invalid Operation selected")
+        }
+        let mut res = Resources::create();
+        Operation::execute(&mut res, op);
+        assert!(true)
     }
 }

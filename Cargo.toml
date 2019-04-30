@@ -3,6 +3,8 @@ name = "chip8"
 version = "0.1.0"
 authors = ["Anthony Logar <coledude919@gmail.com>"]
 edition = "2018"
+build = "build.rs"
 
 [dependencies]
 rand = "0.6.5"
+sdl2 = "0.32.2"

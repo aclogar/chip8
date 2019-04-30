@@ -18,7 +18,7 @@ fn main() {
         println!("Current Program Counter {:x?}", res.pc);
         //        let instruction = get_opcode(&contents, reg.pc as usize);
         //        println!("Current instruction {:x?}", instruction);
-        let op = Operation::parse(&res.ram[res.pc as usize]);
+        let op = Operation::parse(&(res.ram[res.pc as usize], res.ram[(res.pc + 1) as usize]));
         Operation::execute(&mut res, op);
         println!("RegisterBank: {:?}", res);
         res.pc += 1;
@@ -40,7 +40,7 @@ struct Resources {
     delay: u8,
     sound: u8,
     stack: Vec<u16>,
-    ram: Box<[(u8, u8)]>,
+    ram: Box<[u8]>,
 }
 
 impl Resources {
@@ -52,7 +52,7 @@ impl Resources {
             delay: 0,
             sound: 0, //Thread for sound (60 Hz, see spec)
             stack: Vec::new(),
-            ram: Box::new([(0, 0); MEMORY_SIZE]),
+            ram: Box::new([0; MEMORY_SIZE]),
             //Thread for visuals (same speed as exec thread)
         }
     }
@@ -62,9 +62,8 @@ impl Resources {
         if program.len() % 2 != 0 {
             panic!("The program provided has an uneven number of bytes (ie missing a nibble)");
         }
-        while let Some(byte1) = program.pop() {
-            let byte2 = program.pop().expect("Failed to load second byte");
-            self.ram[cur_address] = (byte1, byte2);
+        while let Some(byte) = program.pop() {
+            self.ram[cur_address] = byte;
             cur_address += 1;
             if cur_address > std::u16::MAX as usize || cur_address > self.ram.len() {
                 panic!("Program load address overflowed")

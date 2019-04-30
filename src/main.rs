@@ -148,18 +148,18 @@ enum Operation {
     MovConst { x: u8, byte: u8 },
     AddConst { x: u8, byte: u8 },
     MovReg { x: u8, y: u8 },
-    _Or { x: u8, y: u8 },
-    _And { x: u8, y: u8 },
-    _Xor { x: u8, y: u8 },
-    _AddReg { x: u8, y: u8 },
-    _Sub1Borrow { x: u8, y: u8 }, // set vf to 1 if borrows Vx = Vx - Vy
-    _ShiftRight { x: u8 },        //bit 0 -> Vf
-    _Sub2Borrow { x: u8, y: u8 }, // set vf to 1 if borrows Vx = Vy - Vx
-    _ShiftLeft { x: u8 },         // bit 7 -> Vf
-    _SkneReg { x: u8, y: u8 },
-    _MovI { value: u16 },
-    _JmpI { addr: u16 },
-    _Rand { x: u8, max: u8 },
+    Or { x: u8, y: u8 },
+    And { x: u8, y: u8 },
+    Xor { x: u8, y: u8 },
+    AddReg { x: u8, y: u8 },
+    Sub1Borrow { x: u8, y: u8 }, // set vf to 1 if borrows Vx = Vx - Vy
+    ShiftRight { x: u8 },        //bit 0 -> Vf
+    Sub2Borrow { x: u8, y: u8 }, // set vf to 1 if borrows Vx = Vy - Vx
+    ShiftLeft { x: u8 },         // bit 7 -> Vf
+    SkneReg { x: u8, y: u8 },
+    MovI { value: u16 },
+    JmpI { addr: u16 },
+    Rand { x: u8, max: u8 },
     _Sprite { x: u8, y: u8, s: u8 },
     _XSprite { x: u8, y: u8 },
     _SkKeyPress { key: u8 },
@@ -221,51 +221,62 @@ impl Operation {
                 x: instruction.0 & 0x0F,
                 y: instruction.1 >> 4,
             },
-            (0x80...0x8F, _) if instruction.1 & 0x0F == 0x01 => Operation::_And {
+            (0x80...0x8F, _) if instruction.1 & 0x0F == 0x01 => Operation::And {
                 x: instruction.0 & 0x0F,
                 y: instruction.1 >> 4,
             },
-            (0x80...0x8F, _) if instruction.1 & 0x0F == 0x02 => Operation::_Or {
+            (0x80...0x8F, _) if instruction.1 & 0x0F == 0x02 => Operation::Or {
                 x: instruction.0 & 0x0F,
                 y: instruction.1 >> 4,
             },
-            (0x80...0x8F, _) if instruction.1 & 0x0F == 0x03 => Operation::_Xor {
+            (0x80...0x8F, _) if instruction.1 & 0x0F == 0x03 => Operation::Xor {
                 x: instruction.0 & 0x0F,
                 y: instruction.1 >> 4,
             },
-            (0x80...0x8F, _) if instruction.1 & 0x0F == 0x04 => Operation::_AddReg {
+            (0x80...0x8F, _) if instruction.1 & 0x0F == 0x04 => Operation::AddReg {
                 x: instruction.0 & 0x0F,
                 y: instruction.1 >> 4,
             },
-            (0x80...0x8F, _) if instruction.1 & 0x0F == 0x05 => Operation::_Sub1Borrow {
+            (0x80...0x8F, _) if instruction.1 & 0x0F == 0x05 => Operation::Sub1Borrow {
                 x: instruction.0 & 0x0F,
                 y: instruction.1 >> 4,
             },
-            (0x80...0x8F, 0x06) => Operation::_ShiftRight {
+            (0x80...0x8F, 0x06) => Operation::ShiftRight {
                 x: instruction.0 & 0x0F,
             },
-            (0x80...0x8F, _) if instruction.1 & 0x0F == 0x00 => Operation::_Sub2Borrow {
-                x: instruction.0 & 0x0F,
-                y: instruction.1 >> 4,
-            },
-            (0x80...0x8F, 0x0E) => Operation::_ShiftLeft {
-                x: instruction.0 & 0x0F,
-            },
-            (0x90...0x9F, _) if instruction.1 & 0x0F == 0x00 => Operation::_SkneReg {
+            (0x80...0x8F, _) if instruction.1 & 0x0F == 0x00 => Operation::Sub2Borrow {
                 x: instruction.0 & 0x0F,
                 y: instruction.1 >> 4,
             },
-            (0xA0...0xAF, _) => Operation::_MovI {
+            (0x80...0x8F, 0x0E) => Operation::ShiftLeft {
+                x: instruction.0 & 0x0F,
+            },
+            (0x90...0x9F, _) if instruction.1 & 0x0F == 0x00 => Operation::SkneReg {
+                x: instruction.0 & 0x0F,
+                y: instruction.1 >> 4,
+            },
+            (0xA0...0xAF, _) => Operation::MovI {
                 value: (((instruction.0 as u16) << 8) | instruction.1 as u16)
                     & 0x0FFF,
             },
-            (0xB0...0xBF, _) => Operation::_JmpI {
+            (0xB0...0xBF, _) => Operation::JmpI {
                 addr: (((instruction.0 as u16) << 8) | instruction.1 as u16)
                     & 0x0FFF,
             },
-            (0xC0...0xCF, _) => Operation::_Rand {
+            (0xC0...0xCF, _) => Operation::Rand {
                 x: instruction.0 & 0x0F,
-                max:  instruction.1 ,
+                max: instruction.1,
+            },
+            (0xD0...0xDF, _) => Operation::_Sprite {
+                x: instruction.0 & 0x0F,
+                y: instruction.1 >> 4,
+                s: instruction.1 & 0x0F,
+            },
+            (0xE0...0xEF, 0x9E) => Operation::_SkKeyPress {
+                key: instruction.0 & 0x0F,
+            },
+            (0xE0...0xEF, 0xA1) => Operation::_SkKeyNotPress {
+                key: instruction.0 & 0x0F,
             },
             _ => Operation::NONE,
         }
@@ -332,6 +343,12 @@ impl Operation {
             Operation::_JmpI { addr } => resources.pc = addr + resources.reg[0] as u16,
             Operation::_Rand { x, max } => {
                 resources.reg[x as usize] = rand::random::<u8>() & max;
+            },
+            Operation::_Sprite { x, y, s } => {
+                for i in 0..= s {
+                    resources.ram[(0xF00 + x + (y * 4)) + s * 4] ^= resources.ram[resources.reg_i + i];
+                    //do bit flip detection
+                }
             }
             _ => (),
         }

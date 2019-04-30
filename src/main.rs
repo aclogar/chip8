@@ -35,8 +35,8 @@ fn main() -> Result<(), String>{
         .map_err(|e| e.to_string())?;
     let mut event_pump = sdl_context.event_pump()?;
 
-    res.ram[0xfFF] = 0x12;
-    res.ram[0xf12] = 0x12;
+//    res.ram[0xfFF] = 0x12;
+//    res.ram[0xf12] = 0x12;
 
     'running: loop {
 //        println!("Current Program Counter {:x?}", res.pc);
@@ -80,7 +80,7 @@ fn update_screen(window: &mut Window, event_pump: &sdl2::EventPump, resources : 
         for bit in 0..8 {
             let color = if (0x01 as u8) << bit & byte != 0 { Color::RGB(255, 0, 255) } else { Color::RGB(0, 0, 0) };
 
-            println!("I:{}, index:{}, X:{}, Y:{}", i, index, (((index % 8) * 8 + bit) * 10), ((index / 8) * 10));
+//            println!("I:{}, index:{}, X:{}, Y:{}", i, index, (((index % 8) * 8 + bit) * 10), ((index / 8) * 10));
             surface.fill_rect(Rect::new((((index % 8) * 8 + bit) * 10) as i32, ((index / 8) * 10) as i32, 10, 10), color)?;
         }
     }
@@ -278,7 +278,10 @@ impl Operation {
             (0xE0...0xEF, 0xA1) => Operation::_SkKeyNotPress {
                 key: instruction.0 & 0x0F,
             },
-            _ => Operation::NONE,
+            _ => {
+                println!("Passed instruction {:x?}", (((instruction.0 as u16) << 8) | instruction.1 as u16));
+                Operation::NONE
+            },
         }
     }
     fn execute(resources: &mut Resources, opertation: Operation) {
@@ -311,46 +314,53 @@ impl Operation {
             Operation::MovConst { x, byte: b } => resources.reg[x as usize] = b,
             Operation::AddConst { x, byte: b } => resources.reg[x as usize] += b,
             Operation::MovReg {x, y}=> resources.reg[x as usize] = resources.reg[y as usize],
-            Operation::_Or {x, y}=>  resources.reg[x as usize] |= resources.reg[y as usize],
-            Operation::_And {x, y} =>  resources.reg[x as usize] &= resources.reg[y as usize],
-            Operation::_Xor {x,y} =>  resources.reg[x as usize] ^= resources.reg[y as usize],
-            Operation::_AddReg { x, y } => {
+            Operation::Or {x, y}=>  resources.reg[x as usize] |= resources.reg[y as usize],
+            Operation::And {x, y} =>  resources.reg[x as usize] &= resources.reg[y as usize],
+            Operation::Xor {x,y} =>  resources.reg[x as usize] ^= resources.reg[y as usize],
+            Operation::AddReg { x, y } => {
                 resources.reg[x as usize] += resources.reg[y as usize];
                 if resources.reg[x as usize] < x { resources.reg[0xf] = 1; }
             },
-            Operation::_Sub1Borrow { x, y } => {
+            Operation::Sub1Borrow { x, y } => {
                 if resources.reg[x as usize] > resources.reg[y as usize] { resources.reg[0xf] = 1; }
                 resources.reg[x as usize] = resources.reg[x as usize] - resources.reg[y as usize];
             },
-            Operation::_ShiftRight { x } => {
+            Operation::ShiftRight { x } => {
                 resources.reg[0xf] = resources.reg[x as usize] & 0b0000_0001;
                 resources.reg[x as usize] = resources.reg[x as usize] >> 1;
             },
-            Operation::_Sub2Borrow { x, y } => {
+            Operation::Sub2Borrow { x, y } => {
                 if resources.reg[y as usize] > resources.reg[x as usize] { resources.reg[0xf] = 1; }
                 resources.reg[x as usize] = resources.reg[y as usize] - resources.reg[x as usize];
             },
-            Operation::_ShiftLeft { x } => {
+            Operation::ShiftLeft { x } => {
                 resources.reg[0xf] = resources.reg[x as usize] & 0b1000_0000;
                 resources.reg[x as usize] = resources.reg[x as usize] << 1;
             },
-            Operation::_SkneReg { x, y } => {
+            Operation::SkneReg { x, y } => {
                 if resources.reg[x as usize] != resources.reg[y as usize] {
                     resources.pc += 2;
                 }
             },
-            Operation::_MovI { value } => resources.reg_i = value,
-            Operation::_JmpI { addr } => resources.pc = addr + resources.reg[0] as u16,
-            Operation::_Rand { x, max } => {
+            Operation::MovI { value } => resources.reg_i = value,
+            Operation::JmpI { addr } => resources.pc = addr + resources.reg[0] as u16,
+            Operation::Rand { x, max } => {
                 resources.reg[x as usize] = rand::random::<u8>() & max;
             },
             Operation::_Sprite { x, y, s } => {
+                let x = x as usize;
+                let y = y as usize;
+                let s = s as usize;
+
                 for i in 0..= s {
-                    resources.ram[(0xF00 + x + (y * 4)) + s * 4] ^= resources.ram[resources.reg_i + i];
+                    println!("Draw at x:{}, y:{}", x, y+i);
+                    resources.ram[(0xF00 + x + ((y+i)%32 * 4))] ^= resources.ram[resources.reg_i as usize + i];
                     //do bit flip detection
                 }
             }
-            _ => (),
+            _ => {
+                println!("Attempted to call an implemented Instruction");
+            },
         }
     }
 }

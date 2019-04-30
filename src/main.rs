@@ -66,7 +66,8 @@ fn main() -> Result<(), String>{
 
         //update timers
 //exit(0);
-
+        if res.sound > 0 {res.sound -= 1;}
+        if res.delay > 0 {res.delay -= 1;}
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
     }
     Ok(())
@@ -272,11 +273,17 @@ impl Operation {
                 y: instruction.1 >> 4,
                 s: instruction.1 & 0x0F,
             },
-            (0xE0...0xEF, 0x9E) => Operation::_SkKeyPress {
-                key: instruction.0 & 0x0F,
+//            (0xE0...0xEF, 0x9E) => Operation::_SkKeyPress {
+//                key: instruction.0 & 0x0F,
+//            },
+//            (0xE0...0xEF, 0xA1) => Operation::_SkKeyNotPress {
+//                key: instruction.0 & 0x0F,
+//            },
+            (0xF0...0xFF, 0x15) => Operation::_SetDelay {
+                x: instruction.0 & 0x0F,
             },
-            (0xE0...0xEF, 0xA1) => Operation::_SkKeyNotPress {
-                key: instruction.0 & 0x0F,
+            (0xF0...0xFF, 0x07) => Operation::_GetDelay {
+                x: instruction.0 & 0x0F,
             },
             _ => {
                 println!("Passed instruction {:x?}", (((instruction.0 as u16) << 8) | instruction.1 as u16));
@@ -358,6 +365,8 @@ impl Operation {
                     //do bit flip detection
                 }
             }
+            Operation::_SetDelay { x } => resources.delay = resources.reg[x as usize],
+            Operation::_GetDelay { x } => resources.reg[x as usize]= resources.delay,
             _ => {
                 println!("Attempted to call an implemented Instruction");
             },

@@ -1,34 +1,91 @@
 extern crate rand;
+extern crate sdl2;
 
 use std::fs;
+use sdl2::video::Window;
+use sdl2::rect::Rect;
+use sdl2::event::Event;
+use sdl2::pixels::Color;
+use std::time::Duration;
+use sdl2::keyboard::Keycode;
+use std::process::exit;
+
+const WINDOW_WIDTH : u32 = 640;
+const WINDOW_HEIGHT : u32 = 320;
 
 const MEMORY_SIZE: usize = 4096;
 const STARTING_ADDR: u16 = 0x0200;
 
-fn main() {
+fn main() -> Result<(), String>{
+
     let filename = "pong.ch8";
 
     let contents = fs::read(filename).expect("Something went wrong reading the file");
 
     let mut res = Resources::create();
     res.load_program(contents, STARTING_ADDR);
-    println!("{:?}", Operation::parse(&(0x7a, 0x12)));
 
-    loop {
-        println!("Current Program Counter {:x?}", res.pc);
+    //Create display
+    let sdl_context = sdl2::init()?;
+    let video_subsystem = sdl_context.video()?;
+
+    let mut window = video_subsystem.window("Chip8 emulator", WINDOW_WIDTH, WINDOW_HEIGHT)
+        .position_centered()
+        .build()
+        .map_err(|e| e.to_string())?;
+    let mut event_pump = sdl_context.event_pump()?;
+
+    res.ram[0xfFF] = 0x12;
+    res.ram[0xf12] = 0x12;
+
+    'running: loop {
+//        println!("Current Program Counter {:x?}", res.pc);
+        for event in event_pump.poll_iter() {
+            match event {
+                Event::Quit {..} | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
+                    break 'running
+                },
+                Event::KeyDown { repeat: false, .. } => {
+//                    keypress = true;
+                },
+                _ => {}
+            }
+        }
+
         //        let instruction = get_opcode(&contents, reg.pc as usize);
         //        println!("Current instruction {:x?}", instruction);
         let op = Operation::parse(&(res.ram[res.pc as usize], res.ram[(res.pc + 1) as usize]));
         Operation::execute(&mut res, op);
-        println!("RegisterBank: {:?}", res);
-        res.pc += 1;
+//        println!("RegisterBank: {:?}", res);
+        res.pc += 2;
 
         //reg.execute_instruction(instruction);
 
         //update screen
+        update_screen(&mut window, &event_pump, &res);
 
         //update timers
+//exit(0);
+
+        ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
     }
+    Ok(())
+}
+
+fn update_screen(window: &mut Window, event_pump: &sdl2::EventPump, resources : &Resources) -> Result<(), String> {
+    let mut surface = window.surface(event_pump)?;
+    for i in 0xF00 ..= 0xFFF {
+        let byte = resources.ram.get(i).unwrap();
+        let index = i - 0xF00;
+        for bit in 0..8 {
+            let color = if (0x01 as u8) << bit & byte != 0 { Color::RGB(255, 0, 255) } else { Color::RGB(0, 0, 0) };
+
+            println!("I:{}, index:{}, X:{}, Y:{}", i, index, (((index % 8) * 8 + bit) * 10), ((index / 8) * 10));
+            surface.fill_rect(Rect::new((((index % 8) * 8 + bit) * 10) as i32, ((index / 8) * 10) as i32, 10, 10), color)?;
+        }
+    }
+    surface.finish()
+
 }
 
 /* Resources available to the chip-8 emulator */
@@ -286,15 +343,19 @@ mod tests{
     use super::*;
 
     #[test]
-    fn rand_test(){
-        let op = Operation::parse(&(0xc1,0x12));
+    fn rand_test() {
+        let op = Operation::parse(&(0xc1, 0x12));
         println!("{:?}", op);
         match op {
-            Operation::_Rand {x:1, max:0x12} => (),
+            Operation::_Rand { x: 1, max: 0x12 } => (),
             _ => panic!("Invalid Operation selected")
         }
         let mut res = Resources::create();
-        Operation::execute(&mut res, op);
-        assert!(true)
+        for _ in 0..50 {
+            let op = Operation::parse(&(0xc1, 0x12));
+            Operation::execute(&mut res, op);
+            println!("{:x?}", res.reg[1]);
+            assert!(res.reg[1] <= 0x12);
+        }
     }
 }

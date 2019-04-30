@@ -227,17 +227,17 @@ impl Operation {
             }
             Operation::SkeqConst { x, byte } => {
                 if resources.reg[x as usize] == byte {
-                    resources.pc += 1;
+                    resources.pc += 2;
                 }
             }
             Operation::SkneConst { x, byte } => {
                 if resources.reg[x as usize] != byte {
-                    resources.pc += 1;
+                    resources.pc += 2;
                 }
             }
             Operation::SkeqReg { x, y } => {
                 if resources.reg[x as usize] == resources.reg[y as usize] {
-                    resources.pc += 1;
+                    resources.pc += 2;
                 }
             }
             Operation::MovConst { x, byte: b } => resources.reg[x as usize] = b,
@@ -268,7 +268,7 @@ impl Operation {
             },
             Operation::_SkneReg { x, y } => {
                 if resources.reg[x as usize] != resources.reg[y as usize] {
-                    resources.pc += 1;
+                    resources.pc += 2;
                 }
             },
             Operation::_MovI { value } => resources.reg_i = value,

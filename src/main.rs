@@ -39,7 +39,9 @@ fn main() -> Result<(), String>{
 //    res.ram[0xf12] = 0x12;
 
     'running: loop {
-//        println!("Current Program Counter {:x?}", res.pc);
+
+        let start_pc = res.pc;
+        println!("Current Program Counter {:x?}", res.pc);
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit {..} | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
@@ -55,9 +57,12 @@ fn main() -> Result<(), String>{
         //        let instruction = get_opcode(&contents, reg.pc as usize);
         //        println!("Current instruction {:x?}", instruction);
         let op = Operation::parse(&(res.ram[res.pc as usize], res.ram[(res.pc + 1) as usize]));
-        Operation::execute(&mut res, op);
-//        println!("RegisterBank: {:?}", res);
-        res.pc += 2;
+        Operation::execute(&mut res, op, );
+        println!("RegisterBank: {:x?}", res);
+
+        if start_pc == res.pc {
+            res.pc += 2;
+        }
 
         //reg.execute_instruction(instruction);
 
@@ -279,10 +284,31 @@ impl Operation {
 //            (0xE0...0xEF, 0xA1) => Operation::_SkKeyNotPress {
 //                key: instruction.0 & 0x0F,
 //            },
+            (0xF0...0xFF, 0x07) => Operation::_GetDelay {
+                x: instruction.0 & 0x0F,
+            },
+//            (0xE0...0xEF, 0xA1) => Operation::_KeyWait {
+//                key: instruction.0 & 0x0F,
+//            },
             (0xF0...0xFF, 0x15) => Operation::_SetDelay {
                 x: instruction.0 & 0x0F,
             },
-            (0xF0...0xFF, 0x07) => Operation::_GetDelay {
+            (0xF0...0xFF, 0x18) => Operation::_SetSound {
+                x: instruction.0 & 0x0F,
+            },
+            (0xF0...0xFF, 0x1E) => Operation::_AddI {
+                x: instruction.0 & 0x0F,
+            },
+            (0xF0...0xFF, 0x29) => Operation::_Font {
+                x: instruction.0 & 0x0F,
+            },
+            (0xF0...0xFF, 0x33) => Operation::_Bcd {
+                x: instruction.0 & 0x0F,
+            },
+            (0xF0...0xFF, 0x55) => Operation::_StoreReg {
+                x: instruction.0 & 0x0F,
+            },
+            (0xF0...0xFF, 0x65) => Operation::_LoadReg {
                 x: instruction.0 & 0x0F,
             },
             _ => {
@@ -367,8 +393,31 @@ impl Operation {
             }
             Operation::_SetDelay { x } => resources.delay = resources.reg[x as usize],
             Operation::_GetDelay { x } => resources.reg[x as usize]= resources.delay,
+            Operation::_SetSound {x} => resources.sound = resources.reg[x as usize],
+            Operation::_AddI {x} => resources.reg_i += resources.reg[x as usize] as u16,
+            Operation::_Font {x} => resources.reg_i = 0x0080 +  x as u16 * 5,
+            Operation::_Bcd {x} => {
+                println!("x.{}  :  {}, {}, {}", resources.reg[x as usize],resources.reg[x as usize] / 100, resources.reg[x as usize] / 10 % 10, resources.reg[x as usize] % 10);
+                resources.ram[resources.reg_i as usize] = resources.reg[x as usize] / 100;
+                resources.ram[resources.reg_i as usize + 1] = resources.reg[x as usize] % 100 / 10;
+                resources.ram[resources.reg_i as usize + 2] = resources.reg[x as usize] % 10;
+            },
+            Operation::_StoreReg {x} => {
+                for i  in 0..= x{
+                    let i = i as usize;
+                    let x = x as usize;
+                    resources.ram[i + x] = resources.reg[x]
+                }
+            },
+            Operation::_LoadReg {x} => {
+                for i  in 0..= x{
+                    let i = i as usize;
+                    let x = x as usize;
+                    resources.reg[x] = resources.ram[i + x];
+                }
+            },
             _ => {
-                println!("Attempted to call an implemented Instruction");
+                println!("Attempted to call an implemented Instruction {:?}", opertation);
             },
         }
     }
@@ -383,7 +432,7 @@ mod tests{
         let op = Operation::parse(&(0xc1, 0x12));
         println!("{:?}", op);
         match op {
-            Operation::_Rand { x: 1, max: 0x12 } => (),
+            Operation::Rand { x: 1, max: 0x12 } => (),
             _ => panic!("Invalid Operation selected")
         }
         let mut res = Resources::create();
